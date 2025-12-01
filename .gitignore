@@ -13,3 +13,6 @@ Thumbs.db
 
 # WordPress
 *.log
+
+# Internal documentation (not for public repo)
+docs-internal/

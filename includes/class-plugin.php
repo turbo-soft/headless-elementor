@@ -52,6 +52,13 @@ final class Plugin {
     public $config_generator;
 
     /**
+     * Widget Parser.
+     *
+     * @var Widget_Parser
+     */
+    public $widget_parser;
+
+    /**
      * Admin Settings.
      *
      * @var Admin_Settings
@@ -101,6 +108,7 @@ final class Plugin {
     private function init_components() {
         $this->asset_collector  = new Asset_Collector();
         $this->config_generator = new Config_Generator();
+        $this->widget_parser    = new Widget_Parser();
         $this->rest_fields      = new Rest_Fields( $this );
 
         if ( is_admin() ) {
