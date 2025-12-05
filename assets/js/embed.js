@@ -122,7 +122,7 @@
       console.log('HeadlessElementor: All scripts loaded, jQuery:', typeof jQuery, 'elementorFrontend:', typeof elementorFrontend);
 
       // 6. Initialize Elementor frontend
-      this._initElementor(el);
+      await this._initElementor(el);
     },
 
     /**
@@ -169,33 +169,59 @@
     },
 
     /**
+     * Wait for elementorFrontend to be ready
+     * @param {number} maxWait - Maximum time to wait in ms
+     * @param {number} interval - Polling interval in ms
+     * @returns {Promise}
+     */
+    _waitForElementor(maxWait = 5000, interval = 50) {
+      return new Promise((resolve, reject) => {
+        // Check immediately first
+        if (window.elementorFrontend?.init) {
+          resolve();
+          return;
+        }
+
+        const startTime = Date.now();
+        const check = () => {
+          if (window.elementorFrontend?.init) {
+            resolve();
+          } else if (Date.now() - startTime > maxWait) {
+            reject(new Error('Timed out waiting for elementorFrontend'));
+          } else {
+            setTimeout(check, interval);
+          }
+        };
+        check();
+      });
+    },
+
+    /**
      * Initialize Elementor frontend
      */
-    _initElementor(container) {
-      // Wait for scripts to fully initialize
-      setTimeout(() => {
-        if (window.elementorFrontend) {
-          // Elementor frontend loaded
-          if (typeof elementorFrontend.init === 'function') {
-            try {
-              elementorFrontend.init();
-              console.log('HeadlessElementor: Elementor initialized');
-            } catch (e) {
-              console.log('HeadlessElementor: Elementor already initialized, triggering handlers');
-            }
-          }
+    async _initElementor(container) {
+      try {
+        await this._waitForElementor();
 
-          // Trigger element handlers on the container
-          if (window.jQuery && elementorFrontend.elementsHandler) {
-            const $container = jQuery(container);
-            $container.find('[data-element_type]').each(function() {
-              elementorFrontend.elementsHandler.runReadyTrigger(jQuery(this));
-            });
+        if (typeof elementorFrontend.init === 'function') {
+          try {
+            elementorFrontend.init();
+            console.log('HeadlessElementor: Elementor initialized');
+          } catch (e) {
+            console.log('HeadlessElementor: Elementor already initialized, triggering handlers');
           }
-        } else {
-          console.warn('HeadlessElementor: elementorFrontend not found');
         }
-      }, 200);
+
+        // Trigger element handlers on the container
+        if (window.jQuery && elementorFrontend.elementsHandler) {
+          const $container = jQuery(container);
+          $container.find('[data-element_type]').each(function() {
+            elementorFrontend.elementsHandler.runReadyTrigger(jQuery(this));
+          });
+        }
+      } catch (e) {
+        console.error('HeadlessElementor:', e.message);
+      }
     }
   };
 
