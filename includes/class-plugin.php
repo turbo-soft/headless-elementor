@@ -52,13 +52,6 @@ final class Plugin {
     public $config_generator;
 
     /**
-     * Widget Parser.
-     *
-     * @var Widget_Parser
-     */
-    public $widget_parser;
-
-    /**
      * Admin Settings.
      *
      * @var Admin_Settings
@@ -93,7 +86,6 @@ final class Plugin {
         $defaults = array(
             'enabled_post_types' => array( 'post', 'page' ),
             'cors_origins'       => '',
-            'output_format'      => 'script_tags',
         );
 
         $this->settings = wp_parse_args(
@@ -108,7 +100,6 @@ final class Plugin {
     private function init_components() {
         $this->asset_collector  = new Asset_Collector();
         $this->config_generator = new Config_Generator();
-        $this->widget_parser    = new Widget_Parser();
         $this->rest_fields      = new Rest_Fields( $this );
 
         if ( is_admin() ) {
@@ -218,15 +209,6 @@ final class Plugin {
             exit;
         }
         return $served;
-    }
-
-    /**
-     * Check if output format is script tags.
-     *
-     * @return bool
-     */
-    public function use_script_tags() {
-        return 'script_tags' === $this->get_setting( 'output_format', 'script_tags' );
     }
 
     /**

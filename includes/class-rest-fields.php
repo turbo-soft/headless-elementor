@@ -89,23 +89,16 @@ class Rest_Fields {
             $scripts     = $asset_collector->collect_scripts( $post_id );
 
             // Generate configs.
-            $use_script_tags = $this->plugin->use_script_tags();
-            $config          = $config_generator->get_frontend_config( $post_id, $use_script_tags );
-            $pro_config      = $config_generator->get_pro_config( $post_id, $use_script_tags );
-
-            // Parse structured widget data.
-            $widget_parser = $this->plugin->widget_parser;
-            $widgets       = $widget_parser->parse_document( $document );
+            $config     = $config_generator->get_frontend_config( $post_id );
+            $pro_config = $config_generator->get_pro_config( $post_id );
 
             $response = array(
                 'isElementor' => true,
-                'widgets'     => $widgets,
                 'styleLinks'  => $style_links,
                 'inlineCss'   => $inline_css,
                 'scripts'     => $scripts,
                 'config'      => $config,
                 'proConfig'   => $pro_config,
-                'rendererUrl' => HEADLESS_ELEMENTOR_URL . 'assets/js/renderer.min.js',
             );
 
         } catch ( \Exception $e ) {
@@ -133,13 +126,11 @@ class Rest_Fields {
     private function get_empty_response( $is_elementor ) {
         return array(
             'isElementor' => $is_elementor,
-            'widgets'     => array(),
             'styleLinks'  => array(),
             'inlineCss'   => '',
             'scripts'     => array(),
-            'config'      => $this->plugin->use_script_tags() ? '' : new \stdClass(),
-            'proConfig'   => $this->plugin->use_script_tags() ? '' : null,
-            'rendererUrl' => '',
+            'config'      => array(),
+            'proConfig'   => null,
         );
     }
 
@@ -150,18 +141,13 @@ class Rest_Fields {
      */
     private function get_schema() {
         return array(
-            'description' => __( 'Elementor assets and configuration data for headless rendering.', 'headless-elementor' ),
+            'description' => __( 'Elementor assets for headless rendering.', 'headless-elementor' ),
             'type'        => 'object',
             'context'     => array( 'view', 'embed' ),
             'properties'  => array(
                 'isElementor' => array(
                     'type'        => 'boolean',
                     'description' => __( 'Whether the post is built with Elementor.', 'headless-elementor' ),
-                ),
-                'widgets' => array(
-                    'type'        => 'array',
-                    'description' => __( 'Structured widget data for rendering.', 'headless-elementor' ),
-                    'items'       => array( 'type' => 'object' ),
                 ),
                 'styleLinks' => array(
                     'type'        => 'array',
@@ -178,17 +164,12 @@ class Rest_Fields {
                     'items'       => array( 'type' => 'string', 'format' => 'uri' ),
                 ),
                 'config' => array(
-                    'type'        => array( 'string', 'object' ),
-                    'description' => __( 'Elementor frontend configuration.', 'headless-elementor' ),
+                    'type'        => 'object',
+                    'description' => __( 'Elementor frontend configuration object.', 'headless-elementor' ),
                 ),
                 'proConfig' => array(
-                    'type'        => array( 'string', 'object', 'null' ),
+                    'type'        => array( 'object', 'null' ),
                     'description' => __( 'Elementor Pro frontend configuration (if Pro is active).', 'headless-elementor' ),
-                ),
-                'rendererUrl' => array(
-                    'type'        => 'string',
-                    'format'      => 'uri',
-                    'description' => __( 'URL to the vanilla JS renderer script.', 'headless-elementor' ),
                 ),
             ),
         );

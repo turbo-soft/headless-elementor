@@ -90,7 +90,6 @@ class Admin_Settings {
                 'default'           => array(
                     'enabled_post_types' => array( 'post', 'page' ),
                     'cors_origins'       => '',
-                    'output_format'      => 'script_tags',
                 ),
             )
         );
@@ -126,22 +125,6 @@ class Admin_Settings {
             self::PAGE_SLUG,
             'headless_elementor_cors'
         );
-
-        // Output Section.
-        add_settings_section(
-            'headless_elementor_output',
-            __( 'Output Format', 'headless-elementor' ),
-            array( $this, 'render_output_section' ),
-            self::PAGE_SLUG
-        );
-
-        add_settings_field(
-            'output_format',
-            __( 'Config Format', 'headless-elementor' ),
-            array( $this, 'render_output_format_field' ),
-            self::PAGE_SLUG,
-            'headless_elementor_output'
-        );
     }
 
     /**
@@ -175,12 +158,6 @@ class Admin_Settings {
             }
 
             $sanitized['cors_origins'] = implode( "\n", $clean );
-        }
-
-        // Sanitize output format.
-        $sanitized['output_format'] = 'script_tags';
-        if ( isset( $input['output_format'] ) && in_array( $input['output_format'], array( 'script_tags', 'json' ), true ) ) {
-            $sanitized['output_format'] = $input['output_format'];
         }
 
         return $sanitized;
@@ -246,37 +223,6 @@ class Admin_Settings {
         );
 
         echo '<p class="description">' . esc_html__( 'Enter one origin per line. Use * to allow all origins (not recommended for production).', 'headless-elementor' ) . '</p>';
-    }
-
-    /**
-     * Render output section description.
-     */
-    public function render_output_section() {
-        echo '<p>' . esc_html__( 'Choose how the Elementor configuration should be formatted in the API response.', 'headless-elementor' ) . '</p>';
-    }
-
-    /**
-     * Render output format field.
-     */
-    public function render_output_format_field() {
-        $settings = $this->plugin->get_settings();
-        $format   = isset( $settings['output_format'] ) ? $settings['output_format'] : 'script_tags';
-
-        $options = array(
-            'script_tags' => __( 'Script Tags (ready to inject into HTML)', 'headless-elementor' ),
-            'json'        => __( 'Raw JSON (for SSR or custom processing)', 'headless-elementor' ),
-        );
-
-        foreach ( $options as $value => $label ) {
-            $checked = ( $format === $value ) ? 'checked' : '';
-            printf(
-                '<label style="display: block; margin-bottom: 5px;"><input type="radio" name="%s[output_format]" value="%s" %s> %s</label>',
-                esc_attr( self::OPTION_NAME ),
-                esc_attr( $value ),
-                esc_attr( $checked ),
-                esc_html( $label )
-            );
-        }
     }
 
     /**
