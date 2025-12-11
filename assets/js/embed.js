@@ -121,11 +121,9 @@
       html += data.content.rendered;
       el.innerHTML = html;
 
-      // 7. Load JavaScript files sequentially (order matters for dependencies)
+      // 7. Load JavaScript files (foundation scripts in parallel, then rest sequentially)
       if (elementorData.scripts && elementorData.scripts.length > 0) {
-        for (const url of elementorData.scripts) {
-          await this._loadScript(url);
-        }
+        await this._loadScripts(elementorData.scripts);
       }
 
       // 8. Initialize Elementor frontend
@@ -237,6 +235,47 @@
         script.onerror = () => reject(new Error(`Failed to load script: ${url}`));
         document.head.appendChild(script);
       });
+    },
+
+    /**
+     * Check if a script URL is a "foundation" script with no Elementor dependencies.
+     * These can be loaded in parallel before dependent scripts.
+     */
+    _isFoundationScript(url) {
+      return url.includes('/jquery') ||
+             url.includes('/jquery.min.js') ||
+             url.includes('webpack-runtime');
+    },
+
+    /**
+     * Load scripts with parallel optimization.
+     * Foundation scripts (jQuery, webpack-runtime) load in parallel,
+     * then dependent scripts load sequentially.
+     */
+    async _loadScripts(urls) {
+      if (!urls || urls.length === 0) return;
+
+      // Separate foundation scripts from dependent scripts
+      const foundation = [];
+      const dependent = [];
+
+      for (const url of urls) {
+        if (this._isFoundationScript(url)) {
+          foundation.push(url);
+        } else {
+          dependent.push(url);
+        }
+      }
+
+      // Load foundation scripts in parallel
+      if (foundation.length > 0) {
+        await Promise.all(foundation.map(url => this._loadScript(url)));
+      }
+
+      // Load dependent scripts sequentially (order matters)
+      for (const url of dependent) {
+        await this._loadScript(url);
+      }
     },
 
     /**
