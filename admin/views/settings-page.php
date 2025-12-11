@@ -43,8 +43,8 @@ GET /wp-json/wp/v2/pages/{id}</code></pre>
     "styleLinks": ["https://...frontend.min.css"],
     "inlineCss": ".elementor-123 {...}",
     "scripts": ["https://...frontend.min.js"],
-    "config": "&lt;script&gt;var elementorFrontendConfig = {...};&lt;/script&gt;",
-    "proConfig": "&lt;script&gt;var ElementorProFrontendConfig = {...};&lt;/script&gt;"
+    "config": { "environmentMode": {...}, "kit": {...}, ... },
+    "proConfig": { "ajaxurl": "...", "nonce": "...", ... }
   }
 }</code></pre>
 
@@ -54,13 +54,21 @@ GET /wp-json/wp/v2/pages/{id}</code></pre>
         <li><?php esc_html_e( 'Fetch the post/page via REST API', 'headless-elementor' ); ?></li>
         <li><?php esc_html_e( 'Inject styleLinks as <link> tags in <head>', 'headless-elementor' ); ?></li>
         <li><?php esc_html_e( 'Inject inlineCss as a <style> tag', 'headless-elementor' ); ?></li>
-        <li><?php esc_html_e( 'Inject config and proConfig script tags', 'headless-elementor' ); ?></li>
+        <li><?php esc_html_e( 'Set window.elementorFrontendConfig and window.ElementorProFrontendConfig', 'headless-elementor' ); ?></li>
         <li><?php esc_html_e( 'Render content.rendered in your DOM', 'headless-elementor' ); ?></li>
         <li><?php esc_html_e( 'Load scripts in order', 'headless-elementor' ); ?></li>
-        <li><?php esc_html_e( 'Initialize Elementor: new elementorFrontend.init()', 'headless-elementor' ); ?></li>
+        <li><?php esc_html_e( 'Initialize Elementor: elementorFrontend.init()', 'headless-elementor' ); ?></li>
     </ol>
 
-    <h3><?php esc_html_e( 'Example (JavaScript)', 'headless-elementor' ); ?></h3>
+    <h3><?php esc_html_e( 'Easy Integration (Recommended)', 'headless-elementor' ); ?></h3>
+
+    <pre style="background: #f5f5f5; padding: 15px; overflow-x: auto;"><code>&lt;div id="content"&gt;&lt;/div&gt;
+&lt;script src="<?php echo esc_url( HEADLESS_ELEMENTOR_URL . 'assets/js/embed.js' ); ?>"&gt;&lt;/script&gt;
+&lt;script&gt;
+  HeadlessElementor.load('#content', '<?php echo esc_url( rest_url( 'wp/v2/pages/123' ) ); ?>');
+&lt;/script&gt;</code></pre>
+
+    <h3><?php esc_html_e( 'Manual Integration (Advanced)', 'headless-elementor' ); ?></h3>
 
     <pre style="background: #f5f5f5; padding: 15px; overflow-x: auto;"><code>async function renderElementorPage(postId) {
   const response = await fetch(`/wp-json/wp/v2/pages/${postId}`);
@@ -81,9 +89,11 @@ GET /wp-json/wp/v2/pages/{id}</code></pre>
   style.textContent = data.elementor_data.inlineCss;
   document.head.appendChild(style);
 
-  // Add configs
-  document.head.insertAdjacentHTML('beforeend', data.elementor_data.config);
-  document.head.insertAdjacentHTML('beforeend', data.elementor_data.proConfig);
+  // Set up configs (must be before scripts load)
+  window.elementorFrontendConfig = data.elementor_data.config;
+  if (data.elementor_data.proConfig) {
+    window.ElementorProFrontendConfig = data.elementor_data.proConfig;
+  }
 
   // Render content
   document.getElementById('content').innerHTML = data.content.rendered;
