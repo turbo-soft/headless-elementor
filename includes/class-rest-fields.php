@@ -89,8 +89,13 @@ class Rest_Fields {
             $scripts     = $asset_collector->collect_scripts( $post_id );
 
             // Generate configs.
-            $config     = $config_generator->get_frontend_config( $post_id );
-            $pro_config = $config_generator->get_pro_config( $post_id );
+            $config = $config_generator->get_frontend_config( $post_id );
+
+            // Only include Pro config if enabled in settings (exposes nonce).
+            $pro_config = null;
+            if ( $this->plugin->get_setting( 'include_pro_config', false ) ) {
+                $pro_config = $config_generator->get_pro_config( $post_id );
+            }
 
             $response = array(
                 'isElementor' => true,

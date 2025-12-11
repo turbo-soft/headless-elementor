@@ -125,6 +125,22 @@ class Admin_Settings {
             self::PAGE_SLUG,
             'headless_elementor_cors'
         );
+
+        // Pro Config Section.
+        add_settings_section(
+            'headless_elementor_pro',
+            __( 'Elementor Pro Settings', 'headless-elementor' ),
+            array( $this, 'render_pro_section' ),
+            self::PAGE_SLUG
+        );
+
+        add_settings_field(
+            'include_pro_config',
+            __( 'Include Pro Config', 'headless-elementor' ),
+            array( $this, 'render_pro_config_field' ),
+            self::PAGE_SLUG,
+            'headless_elementor_pro'
+        );
     }
 
     /**
@@ -159,6 +175,9 @@ class Admin_Settings {
 
             $sanitized['cors_origins'] = implode( "\n", $clean );
         }
+
+        // Sanitize Pro config toggle.
+        $sanitized['include_pro_config'] = ! empty( $input['include_pro_config'] );
 
         return $sanitized;
     }
@@ -212,17 +231,60 @@ class Admin_Settings {
      * Render CORS origins field.
      */
     public function render_cors_field() {
-        $settings = $this->plugin->get_settings();
-        $origins  = isset( $settings['cors_origins'] ) ? $settings['cors_origins'] : '';
+        $settings           = $this->plugin->get_settings();
+        $origins            = isset( $settings['cors_origins'] ) ? $settings['cors_origins'] : '';
+        $include_pro_config = ! empty( $settings['include_pro_config'] );
+        $has_wildcard       = false !== strpos( $origins, '*' );
 
         printf(
-            '<textarea name="%s[cors_origins]" rows="5" cols="50" class="large-text code" placeholder="%s">%s</textarea>',
+            '<textarea name="%s[cors_origins]" id="headless_elementor_cors_origins" rows="5" cols="50" class="large-text code" placeholder="%s">%s</textarea>',
             esc_attr( self::OPTION_NAME ),
             esc_attr( "https://example.com\nhttps://staging.example.com" ),
             esc_textarea( $origins )
         );
 
         echo '<p class="description">' . esc_html__( 'Enter one origin per line. Use * to allow all origins (not recommended for production).', 'headless-elementor' ) . '</p>';
+
+        // Show security warning if wildcard is used with Pro config enabled.
+        if ( $has_wildcard && $include_pro_config ) {
+            echo '<div class="notice notice-warning inline" style="margin-top: 10px; padding: 10px;">';
+            echo '<strong>' . esc_html__( 'Security Warning:', 'headless-elementor' ) . '</strong> ';
+            echo esc_html__( 'Using wildcard (*) CORS with Pro Config enabled exposes authentication nonces to any website. This could allow malicious sites to perform authenticated AJAX actions. Consider either restricting CORS origins or disabling Pro Config below.', 'headless-elementor' );
+            echo '</div>';
+        }
+    }
+
+    /**
+     * Render Pro section description.
+     */
+    public function render_pro_section() {
+        echo '<p>' . esc_html__( 'Configure Elementor Pro integration settings.', 'headless-elementor' ) . '</p>';
+    }
+
+    /**
+     * Render Pro config field.
+     */
+    public function render_pro_config_field() {
+        $settings           = $this->plugin->get_settings();
+        $include_pro_config = ! empty( $settings['include_pro_config'] );
+        $origins            = isset( $settings['cors_origins'] ) ? $settings['cors_origins'] : '';
+        $has_wildcard       = false !== strpos( $origins, '*' );
+
+        printf(
+            '<label><input type="checkbox" name="%s[include_pro_config]" id="headless_elementor_pro_config" value="1" %s> %s</label>',
+            esc_attr( self::OPTION_NAME ),
+            checked( $include_pro_config, true, false ),
+            esc_html__( 'Include Elementor Pro configuration in API responses', 'headless-elementor' )
+        );
+
+        echo '<p class="description">' . esc_html__( 'When enabled, includes ElementorProFrontendConfig with AJAX URL and authentication nonce. Required for Pro widgets that use AJAX (forms, popup triggers, etc.).', 'headless-elementor' ) . '</p>';
+
+        if ( $has_wildcard && $include_pro_config ) {
+            echo '<p class="description" style="color: #d63638;">';
+            echo '<span class="dashicons dashicons-warning" style="color: #d63638;"></span> ';
+            echo esc_html__( 'Warning: Nonce is currently exposed to all origins due to wildcard CORS.', 'headless-elementor' );
+            echo '</p>';
+        }
     }
 
     /**

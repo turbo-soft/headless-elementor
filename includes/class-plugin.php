@@ -84,8 +84,9 @@ final class Plugin {
      */
     private function load_settings() {
         $defaults = array(
-            'enabled_post_types' => array( 'post', 'page' ),
-            'cors_origins'       => '',
+            'enabled_post_types'  => array( 'post', 'page' ),
+            'cors_origins'        => '',
+            'include_pro_config'  => false,
         );
 
         $this->settings = wp_parse_args(
