@@ -88,6 +88,9 @@ class Rest_Fields {
             $inline_css  = $asset_collector->get_inline_css( $post_id );
             $scripts     = $asset_collector->collect_scripts( $post_id );
 
+            // Get kit (global styles) data.
+            $kit_data = $asset_collector->get_kit_data();
+
             // Generate configs.
             $config = $config_generator->get_frontend_config( $post_id );
 
@@ -104,6 +107,7 @@ class Rest_Fields {
                 'scripts'     => $scripts,
                 'config'      => $config,
                 'proConfig'   => $pro_config,
+                'kit'         => $kit_data,
             );
 
         } catch ( \Exception $e ) {
@@ -136,6 +140,11 @@ class Rest_Fields {
             'scripts'     => array(),
             'config'      => array(),
             'proConfig'   => null,
+            'kit'         => array(
+                'id'        => null,
+                'cssUrl'    => null,
+                'inlineCss' => '',
+            ),
         );
     }
 
@@ -175,6 +184,25 @@ class Rest_Fields {
                 'proConfig' => array(
                     'type'        => array( 'object', 'null' ),
                     'description' => __( 'Elementor Pro frontend configuration (if Pro is active).', 'headless-elementor' ),
+                ),
+                'kit' => array(
+                    'type'        => 'object',
+                    'description' => __( 'Elementor Kit (global styles) data.', 'headless-elementor' ),
+                    'properties'  => array(
+                        'id' => array(
+                            'type'        => array( 'integer', 'null' ),
+                            'description' => __( 'Kit post ID for wrapper class (elementor-kit-{id}).', 'headless-elementor' ),
+                        ),
+                        'cssUrl' => array(
+                            'type'        => array( 'string', 'null' ),
+                            'description' => __( 'Kit CSS file URL (if using external file mode).', 'headless-elementor' ),
+                            'format'      => 'uri',
+                        ),
+                        'inlineCss' => array(
+                            'type'        => 'string',
+                            'description' => __( 'Kit inline CSS (if using inline mode).', 'headless-elementor' ),
+                        ),
+                    ),
                 ),
             ),
         );

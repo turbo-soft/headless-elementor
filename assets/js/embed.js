@@ -19,11 +19,14 @@
 (function(global) {
   'use strict';
 
-  console.log('HeadlessElementor: embed.js loaded v2');
-
   const HeadlessElementor = {
     loadedStyles: new Set(),
     loadedScripts: new Set(),
+
+    // Track page-specific resources for cleanup
+    _pageStyles: [],        // Page-specific <link> elements
+    _inlineStyles: [],      // Injected <style> elements
+    _inlineCssHashes: new Set(),  // For deduplication
 
     /**
      * Load and render Elementor content (main entry point)
@@ -32,7 +35,6 @@
      * @param {object} options - Optional settings
      */
     async load(container, apiUrl, options = {}) {
-      console.log('HeadlessElementor: load() called', { container, apiUrl });
       const el = typeof container === 'string' ? document.querySelector(container) : container;
 
       if (!el) {
@@ -79,17 +81,30 @@
         return;
       }
 
-      // 1. Load CSS files
+      // 1. Apply Kit wrapper class (for global styles to work)
+      if (elementorData.kit?.id) {
+        el.classList.add(`elementor-kit-${elementorData.kit.id}`);
+      }
+
+      // 2. Load Kit CSS (global colors, typography, theme styles)
+      if (elementorData.kit?.cssUrl) {
+        this._loadCSS(elementorData.kit.cssUrl);
+      }
+      if (elementorData.kit?.inlineCss) {
+        this._injectCSS(elementorData.kit.inlineCss);
+      }
+
+      // 3. Load page CSS files
       if (elementorData.styleLinks) {
         elementorData.styleLinks.forEach(url => this._loadCSS(url));
       }
 
-      // 2. Inject inline CSS
+      // 4. Inject page inline CSS
       if (elementorData.inlineCss) {
         this._injectCSS(elementorData.inlineCss);
       }
 
-      // 3. Setup Elementor config objects (must be before loading scripts)
+      // 5. Setup Elementor config objects (must be before loading scripts)
       if (elementorData.config) {
         window.elementorFrontendConfig = elementorData.config;
       }
@@ -97,7 +112,7 @@
         window.ElementorProFrontendConfig = elementorData.proConfig;
       }
 
-      // 4. Render HTML content FIRST (before scripts, so elements exist)
+      // 6. Render HTML content FIRST (before scripts, so elements exist)
       let html = '';
       if (options.showTitle && data.title?.rendered) {
         const titleTag = options.titleTag || 'h1';
@@ -106,23 +121,68 @@
       html += data.content.rendered;
       el.innerHTML = html;
 
-      // 5. Load JavaScript files sequentially (order matters for dependencies)
-      console.log('HeadlessElementor: Scripts to load:', elementorData.scripts);
+      // 7. Load JavaScript files sequentially (order matters for dependencies)
       if (elementorData.scripts && elementorData.scripts.length > 0) {
         for (const url of elementorData.scripts) {
-          console.log('HeadlessElementor: Loading script:', url);
-          try {
-            await this._loadScript(url);
-            console.log('HeadlessElementor: Loaded:', url);
-          } catch (e) {
-            console.error('HeadlessElementor: Failed to load:', url, e);
-          }
+          await this._loadScript(url);
         }
       }
-      console.log('HeadlessElementor: All scripts loaded, jQuery:', typeof jQuery, 'elementorFrontend:', typeof elementorFrontend);
 
-      // 6. Initialize Elementor frontend
+      // 8. Initialize Elementor frontend
       await this._initElementor(el);
+    },
+
+    /**
+     * Clean up page-specific resources (for SPA navigation)
+     * Call this before loading new content or when unmounting
+     * @param {string|Element} container - CSS selector or DOM element (optional)
+     */
+    destroy(container) {
+      // Remove page-specific external stylesheets
+      this._pageStyles.forEach(link => {
+        link.remove();
+        this.loadedStyles.delete(link.href);
+      });
+      this._pageStyles = [];
+
+      // Remove injected inline styles
+      this._inlineStyles.forEach(style => style.remove());
+      this._inlineStyles = [];
+      this._inlineCssHashes.clear();
+
+      // Clear container if provided
+      if (container) {
+        const el = typeof container === 'string' ? document.querySelector(container) : container;
+        if (el) {
+          // Remove kit wrapper class (matches elementor-kit-{id})
+          el.classList.forEach(cls => {
+            if (cls.startsWith('elementor-kit-')) {
+              el.classList.remove(cls);
+            }
+          });
+          el.innerHTML = '';
+        }
+      }
+    },
+
+    /**
+     * djb2 hash - creates a short fingerprint from string content
+     * Used to deduplicate inline CSS without storing full content
+     */
+    _hashString(str) {
+      let hash = 5381;
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) + hash) + str.charCodeAt(i);
+      }
+      return (hash >>> 0).toString(36);
+    },
+
+    /**
+     * Check if a CSS URL is page-specific (vs shared Elementor core)
+     */
+    _isPageSpecificCSS(url) {
+      return /\/elementor\/css\/post-\d+\.css/.test(url) ||
+             /\/uploads\/.*\/elementor\/css\//.test(url);
     },
 
     /**
@@ -136,15 +196,26 @@
       link.href = url;
       document.head.appendChild(link);
       this.loadedStyles.add(url);
+
+      // Track page-specific CSS for cleanup
+      if (this._isPageSpecificCSS(url)) {
+        this._pageStyles.push(link);
+      }
     },
 
     /**
-     * Inject inline CSS
+     * Inject inline CSS (with deduplication)
      */
     _injectCSS(css) {
+      const hash = this._hashString(css);
+      if (this._inlineCssHashes.has(hash)) return;
+
       const style = document.createElement('style');
       style.textContent = css;
       document.head.appendChild(style);
+
+      this._inlineCssHashes.add(hash);
+      this._inlineStyles.push(style);
     },
 
     /**
@@ -206,9 +277,8 @@
         if (typeof elementorFrontend.init === 'function') {
           try {
             elementorFrontend.init();
-            console.log('HeadlessElementor: Elementor initialized');
           } catch (e) {
-            console.log('HeadlessElementor: Elementor already initialized, triggering handlers');
+            // Already initialized, continue to trigger handlers
           }
         }
 

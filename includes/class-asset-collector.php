@@ -86,8 +86,8 @@ class Asset_Collector {
     /**
      * Collect all enqueued style URLs.
      *
-     * Includes both enqueued WordPress styles and the generated Elementor
-     * post CSS file (if using external file mode).
+     * Includes enqueued WordPress styles, the generated Elementor post CSS file,
+     * and the active Kit CSS file (global colors, typography, theme styles).
      *
      * @param int $post_id Post ID.
      * @return array Array of CSS file URLs.
@@ -95,6 +95,12 @@ class Asset_Collector {
     public function collect_styles( $post_id = 0 ) {
         $wp_styles = wp_styles();
         $collected = array();
+
+        // Collect Kit (Global) CSS first - this provides CSS variables and theme styles.
+        $kit_css_url = $this->get_kit_css_url();
+        if ( $kit_css_url ) {
+            $collected[] = $kit_css_url;
+        }
 
         // Collect enqueued styles from WordPress.
         foreach ( $wp_styles->queue as $handle ) {
@@ -128,6 +134,60 @@ class Asset_Collector {
         }
 
         return array_values( array_unique( $collected ) );
+    }
+
+    /**
+     * Get the active Kit data including ID and CSS.
+     *
+     * The Kit contains global styles: colors, typography, buttons, form fields, etc.
+     * These are site-wide styles that apply to all Elementor pages via a wrapper class.
+     *
+     * @return array Kit data with 'id', 'cssUrl', and 'inlineCss' keys.
+     */
+    public function get_kit_data() {
+        $data = array(
+            'id'        => null,
+            'cssUrl'    => null,
+            'inlineCss' => '',
+        );
+
+        if ( ! class_exists( '\Elementor\Plugin' ) || ! class_exists( '\Elementor\Core\Files\CSS\Post' ) ) {
+            return $data;
+        }
+
+        $kit = \Elementor\Plugin::instance()->kits_manager->get_active_kit_for_frontend();
+
+        if ( ! $kit || ! $kit->get_id() ) {
+            return $data;
+        }
+
+        $data['id'] = $kit->get_id();
+
+        $css_file = \Elementor\Core\Files\CSS\Post::create( $kit->get_id() );
+        $meta     = $css_file->get_meta();
+
+        if ( isset( $meta['status'] ) && 'file' === $meta['status'] ) {
+            // External file mode - return URL.
+            $data['cssUrl'] = $css_file->get_url();
+        } else {
+            // Inline mode - return CSS content.
+            $data['inlineCss'] = $css_file->get_content();
+        }
+
+        return $data;
+    }
+
+    /**
+     * Get the active Kit's CSS file URL.
+     *
+     * The Kit contains global styles: colors, typography, buttons, form fields, etc.
+     * These are site-wide styles that apply to all Elementor pages.
+     *
+     * @return string|null Kit CSS URL if available, null otherwise.
+     */
+    private function get_kit_css_url() {
+        $kit_data = $this->get_kit_data();
+        return $kit_data['cssUrl'];
     }
 
     /**
