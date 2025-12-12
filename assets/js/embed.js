@@ -8,11 +8,18 @@
  * - Sets up Elementor configuration
  * - Renders content and initializes Elementor
  *
- * Usage:
+ * Usage (Client-Side Rendering):
  *   <div id="content"></div>
  *   <script src="https://your-site.com/wp-content/plugins/headless-elementor/assets/js/embed.js"></script>
  *   <script>
  *     HeadlessElementor.load('#content', 'https://your-site.com/wp-json/wp/v2/pages/123');
+ *   </script>
+ *
+ * Usage (SSR Hydration - for Next.js, Nuxt, etc.):
+ *   Server renders HTML + CSS, then client hydrates:
+ *   <script>
+ *     // elementorData fetched server-side and passed to client
+ *     HeadlessElementor.hydrate('#content', { elementor_data: elementorData });
  *   </script>
  */
 
@@ -131,6 +138,84 @@
     },
 
     /**
+     * Hydrate server-rendered content (for SSR/SEO)
+     *
+     * Use this when HTML and CSS are already rendered server-side.
+     * This method only loads JavaScript and initializes widget interactivity.
+     *
+     * @param {string|Element} container - CSS selector or DOM element with pre-rendered content
+     * @param {object} data - Page/post data from REST API (must include elementor_data)
+     * @param {object} options - Optional settings
+     * @param {boolean} options.loadCss - Also load CSS (default: false, assumes server handled it)
+     *
+     * @example
+     * // Server-side (Next.js getServerSideProps):
+     * const res = await fetch('https://wp-site.com/wp-json/wp/v2/pages/123');
+     * const pageData = await res.json();
+     * // Render pageData.content.rendered as HTML
+     * // Include pageData.elementor_data.styleLinks as <link> tags
+     * // Include pageData.elementor_data.inlineCss in a <style> tag
+     *
+     * // Client-side:
+     * HeadlessElementor.hydrate('#content', pageData);
+     */
+    async hydrate(container, data, options = {}) {
+      const el = typeof container === 'string' ? document.querySelector(container) : container;
+
+      if (!el) {
+        console.error('HeadlessElementor: Container not found');
+        return;
+      }
+
+      const elementorData = data.elementor_data;
+
+      if (!elementorData) {
+        console.warn('HeadlessElementor: No elementor_data found, nothing to hydrate');
+        return;
+      }
+
+      // 1. Apply Kit wrapper class if not already present
+      if (elementorData.kit?.id) {
+        const kitClass = `elementor-kit-${elementorData.kit.id}`;
+        if (!el.classList.contains(kitClass)) {
+          el.classList.add(kitClass);
+        }
+      }
+
+      // 2. Optionally load CSS (if server didn't handle it)
+      if (options.loadCss) {
+        if (elementorData.kit?.cssUrl) {
+          this._loadCSS(elementorData.kit.cssUrl);
+        }
+        if (elementorData.kit?.inlineCss) {
+          this._injectCSS(elementorData.kit.inlineCss);
+        }
+        if (elementorData.styleLinks) {
+          elementorData.styleLinks.forEach(url => this._loadCSS(url));
+        }
+        if (elementorData.inlineCss) {
+          this._injectCSS(elementorData.inlineCss);
+        }
+      }
+
+      // 3. Setup Elementor config objects (must be before loading scripts)
+      if (elementorData.config) {
+        window.elementorFrontendConfig = elementorData.config;
+      }
+      if (elementorData.proConfig) {
+        window.ElementorProFrontendConfig = elementorData.proConfig;
+      }
+
+      // 4. Load JavaScript files
+      if (elementorData.scripts && elementorData.scripts.length > 0) {
+        await this._loadScripts(elementorData.scripts);
+      }
+
+      // 5. Initialize Elementor frontend (makes widgets interactive)
+      await this._initElementor(el);
+    },
+
+    /**
      * Clean up page-specific resources (for SPA navigation)
      * Call this before loading new content or when unmounting
      * @param {string|Element} container - CSS selector or DOM element (optional)
@@ -240,11 +325,18 @@
     /**
      * Check if a script URL is a "foundation" script with no Elementor dependencies.
      * These can be loaded in parallel before dependent scripts.
+     *
+     * Only matches:
+     * - jQuery core: jquery.min.js or jquery-3.x.x.min.js (NOT jquery-migrate, jquery-ui, etc.)
+     * - Webpack runtime: webpack.runtime.min.js or webpack-runtime.min.js
      */
     _isFoundationScript(url) {
-      return url.includes('/jquery') ||
-             url.includes('/jquery.min.js') ||
-             url.includes('webpack-runtime');
+      // Match only jQuery core (ends with jquery.min.js or jquery-version.min.js)
+      const isJQueryCore = /\/jquery(?:-\d+\.\d+\.\d+)?\.min\.js$/.test(url);
+      // Match webpack runtime (both dot and hyphen variants)
+      const isWebpackRuntime = /webpack[.-]runtime/.test(url);
+
+      return isJQueryCore || isWebpackRuntime;
     },
 
     /**
