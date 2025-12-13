@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Headless Elementor
- * Plugin URI: https://github.com/your-username/headless-elementor
+ * Plugin URI: https://github.com/turbo-soft/headless-elementor
  * Description: REST API extension for headless Elementor content delivery. Provides CSS, JS, and configuration data needed to render Elementor pages on external frontends.
  * Version: 1.0.0
  * Requires at least: 5.8
