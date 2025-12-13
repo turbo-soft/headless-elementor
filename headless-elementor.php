@@ -35,9 +35,10 @@ function headless_elementor_requirements_check() {
             printf(
                 '<div class="notice notice-error"><p>%s</p></div>',
                 sprintf(
-                    esc_html__( 'Headless Elementor requires PHP %s or higher. Your current version is %s.', 'headless-elementor' ),
-                    $php_version,
-                    PHP_VERSION
+                    /* translators: 1: Required PHP version, 2: Current PHP version */
+                    esc_html__( 'Headless Elementor requires PHP %1$s or higher. Your current version is %2$s.', 'headless-elementor' ),
+                    esc_html( $php_version ),
+                    esc_html( PHP_VERSION )
                 )
             );
         });
@@ -45,13 +46,16 @@ function headless_elementor_requirements_check() {
     }
 
     global $wp_version;
-    if ( version_compare( $wp_version, $wp_version, '<' ) ) {
-        add_action( 'admin_notices', function() use ( $wp_version ) {
+    $required_wp_version = '5.8';
+    if ( version_compare( $wp_version, $required_wp_version, '<' ) ) {
+        add_action( 'admin_notices', function() use ( $required_wp_version, $wp_version ) {
             printf(
                 '<div class="notice notice-error"><p>%s</p></div>',
                 sprintf(
-                    esc_html__( 'Headless Elementor requires WordPress %s or higher.', 'headless-elementor' ),
-                    $wp_version
+                    /* translators: 1: Required WordPress version, 2: Current WordPress version */
+                    esc_html__( 'Headless Elementor requires WordPress %1$s or higher. Your current version is %2$s.', 'headless-elementor' ),
+                    esc_html( $required_wp_version ),
+                    esc_html( $wp_version )
                 )
             );
         });

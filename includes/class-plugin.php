@@ -112,20 +112,8 @@ final class Plugin {
      * Initialize hooks.
      */
     private function init_hooks() {
-        add_action( 'init', array( $this, 'load_textdomain' ) );
         add_action( 'rest_api_init', array( $this, 'add_cors_headers' ) );
         add_filter( 'rest_pre_serve_request', array( $this, 'handle_cors_preflight' ), 10, 4 );
-    }
-
-    /**
-     * Load plugin text domain.
-     */
-    public function load_textdomain() {
-        load_plugin_textdomain(
-            'headless-elementor',
-            false,
-            dirname( plugin_basename( HEADLESS_ELEMENTOR_FILE ) ) . '/languages'
-        );
     }
 
     /**

@@ -39,9 +39,6 @@ class Config_Generator {
 			$method->setAccessible( true );
 			$settings = $method->invoke( $frontend );
 		} catch ( \Exception $e ) {
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-				error_log( 'Headless Elementor: Config reflection failed - ' . $e->getMessage() );
-			}
 			return array();
 		}
 
@@ -67,6 +64,7 @@ class Config_Generator {
 		}
 
 		$assets_url = defined( 'ELEMENTOR_PRO_ASSETS_URL' ) ? ELEMENTOR_PRO_ASSETS_URL : '';
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Using Elementor Pro's filter.
 		$assets_url = apply_filters( 'elementor_pro/frontend/assets_url', $assets_url );
 
 		$locale_settings = array(
@@ -81,6 +79,7 @@ class Config_Generator {
 			),
 		);
 
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Using Elementor Pro's filter.
 		$locale_settings = apply_filters( 'elementor_pro/frontend/localize_settings', $locale_settings );
 
 		return $locale_settings;
