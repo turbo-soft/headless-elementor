@@ -78,25 +78,37 @@ class Rest_Fields {
         $post = get_post( $post_id );
         setup_postdata( $post );
 
+        $current_step = 'initializing';
+
         try {
             $asset_collector  = $this->plugin->asset_collector;
             $config_generator = $this->plugin->config_generator;
 
             // Enable and collect assets.
+            $current_step = 'enabling_page_assets';
             $asset_collector->enable_page_assets( $post_id );
+
+            $current_step = 'collecting_styles';
             $style_links = $asset_collector->collect_styles( $post_id );
+
+            $current_step = 'collecting_inline_css';
             $inline_css  = $asset_collector->get_inline_css( $post_id );
+
+            $current_step = 'collecting_scripts';
             $scripts     = $asset_collector->collect_scripts( $post_id );
 
             // Get kit (global styles) data.
+            $current_step = 'collecting_kit_data';
             $kit_data = $asset_collector->get_kit_data();
 
             // Generate configs.
+            $current_step = 'generating_frontend_config';
             $config = $config_generator->get_frontend_config( $post_id );
 
             // Only include Pro config if enabled in settings (exposes nonce).
             $pro_config = null;
             if ( $this->plugin->get_setting( 'include_pro_config', false ) ) {
+                $current_step = 'generating_pro_config';
                 $pro_config = $config_generator->get_pro_config( $post_id );
             }
 
@@ -111,8 +123,15 @@ class Rest_Fields {
             );
 
         } catch ( \Exception $e ) {
-            $response = $this->get_empty_response( true );
-            $response['error'] = $e->getMessage();
+            $response          = $this->get_empty_response( true );
+            $response['error'] = array(
+                'code'    => 'asset_collection_failed',
+                'message' => $e->getMessage(),
+                'context' => array(
+                    'post_id' => $post_id,
+                    'step'    => $current_step,
+                ),
+            );
         }
 
         // Restore original post context.
@@ -201,6 +220,34 @@ class Rest_Fields {
                         'inlineCss' => array(
                             'type'        => 'string',
                             'description' => __( 'Kit inline CSS (if using inline mode).', 'headless-elementor' ),
+                        ),
+                    ),
+                ),
+                'error' => array(
+                    'type'        => array( 'object', 'null' ),
+                    'description' => __( 'Error details if asset collection failed.', 'headless-elementor' ),
+                    'properties'  => array(
+                        'code' => array(
+                            'type'        => 'string',
+                            'description' => __( 'Error code identifier.', 'headless-elementor' ),
+                        ),
+                        'message' => array(
+                            'type'        => 'string',
+                            'description' => __( 'Human-readable error message.', 'headless-elementor' ),
+                        ),
+                        'context' => array(
+                            'type'        => 'object',
+                            'description' => __( 'Additional context for debugging.', 'headless-elementor' ),
+                            'properties'  => array(
+                                'post_id' => array(
+                                    'type'        => 'integer',
+                                    'description' => __( 'Post ID being processed.', 'headless-elementor' ),
+                                ),
+                                'step' => array(
+                                    'type'        => 'string',
+                                    'description' => __( 'Processing step where error occurred.', 'headless-elementor' ),
+                                ),
+                            ),
                         ),
                     ),
                 ),
